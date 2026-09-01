@@ -1,8 +1,6 @@
 package com.example.backendtraining.Data_DBconnection.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 
 @Entity
 public class User {
@@ -10,6 +8,8 @@ public class User {
     @GeneratedValue
     private int id;
     private String name;
+
+    @Enumerated(EnumType.STRING)
     private Role role;
     private String email;
     private String password;

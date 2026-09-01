@@ -1,14 +1,15 @@
 package com.example.backendtraining.Data_DBconnection.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 
+@Table(name = "orders")
 @Entity
 public class Order {
     @Id
     @GeneratedValue
     private int id;
+
+    @ManyToOne
     private User user;
     private int trackNumber;
 
