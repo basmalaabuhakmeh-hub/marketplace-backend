@@ -1,4 +1,4 @@
-package com.example.backendtraining.model;
+package com.example.backendtraining.Data_DBconnection.model;
 
 import jakarta.persistence.Entity;
 
