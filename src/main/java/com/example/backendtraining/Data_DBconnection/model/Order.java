@@ -1,7 +1,15 @@
 package com.example.backendtraining.Data_DBconnection.model;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Getter
+@Setter
 @Table(name = "orders")
 @Entity
 public class Order {
@@ -10,38 +18,28 @@ public class Order {
     private int id;
 
     @ManyToOne
-    private User user;
+    @JoinColumn(name = "customer_id")
+    private Customer customer;
+
     private int trackNumber;
+
+    @Enumerated(EnumType.STRING)
+    private OrderStatus orderStatus = OrderStatus.PLACED;
+
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
+    private List<OrderItem> orderItems;
 
     public Order() {
     }
-    public Order(int id, User user, int trackNumber) {
+
+    public Order(int id, Customer customer, int trackNumber, LocalDateTime createdAt, List<OrderItem> orderItems) {
         this.id = id;
-        this.user = user;
+        this.customer = customer;
         this.trackNumber = trackNumber;
-    }
-
-    public int getId() {
-        return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
-    }
-
-    public int getTrackNumber() {
-        return trackNumber;
-    }
-
-    public void setTrackNumber(int trackNumber) {
-        this.trackNumber = trackNumber;
+        this.createdAt = createdAt;
+        this.orderItems = orderItems;
     }
 }

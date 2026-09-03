@@ -1,7 +1,11 @@
 package com.example.backendtraining.Data_DBconnection.model;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 
+@Setter
+@Getter
 @Entity
 public class Product {
     @Id
@@ -9,49 +13,22 @@ public class Product {
     private int id;
     private String name;
 
+    @ManyToOne
+    @JoinColumn(name = "seller_id")
+    private Seller seller;
+
     @Enumerated(EnumType.STRING)
-    private ProductType ProductType;
+    private ProductType productType;
     private double price;
 
     public Product() {
     }
 
-    public Product(int id, String name, ProductType productType, double price) {
+    public Product(int id, String name, Seller seller, ProductType productType, double price) {
         this.id = id;
         this.name = name;
-        ProductType = productType;
-        this.price = price;
-    }
-
-    public int getId() {
-        return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public ProductType getProductType() {
-        return ProductType;
-    }
-
-    public void setProductType(ProductType productType) {
-        ProductType = productType;
-    }
-
-    public double getPrice() {
-        return price;
-    }
-
-    public void setPrice(double price) {
+        this.seller = seller;
+        this.productType = productType;
         this.price = price;
     }
 }
