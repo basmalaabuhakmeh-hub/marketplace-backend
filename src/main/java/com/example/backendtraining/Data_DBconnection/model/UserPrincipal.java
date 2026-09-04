@@ -6,19 +6,19 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
-public class UserPrincipel implements UserDetails {
+public class UserPrincipal implements UserDetails {
     private User user;
 
-    public UserPrincipel(User user) {
+    public UserPrincipal(User user) {
         this.user = user;
     }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Collections.singleton(new SimpleGrantedAuthority("USER"));
+        return List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
+    }
 
 
     @Override
@@ -28,7 +28,7 @@ public class UserPrincipel implements UserDetails {
 
     @Override
     public String getUsername() {
-        return user.getUserName();
+        return user.getEmail();
     }
 
     @Override
@@ -48,6 +48,9 @@ public class UserPrincipel implements UserDetails {
 
     @Override
     public boolean isEnabled() {
+        if (user instanceof Seller seller) {
+            return seller.getStatus() != SellerStatus.REJECTED;
+        }
         return true;
     }
 }

@@ -1,0 +1,31 @@
+package com.example.backendtraining.controller;
+
+import com.example.backendtraining.dto.CustomerSignupRequest;
+import com.example.backendtraining.dto.SellerSignupRequest;
+import com.example.backendtraining.service.AuthService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/auth")
+public class AuthController {
+
+    @Autowired
+    AuthService authService;
+
+    @PostMapping("/signup/customer")
+    public ResponseEntity<String> signupCustomer(@RequestBody CustomerSignupRequest req) {
+        authService.signupCustomer(req);
+        return ResponseEntity.ok("Customer registered");
+    }
+
+    @PostMapping("/signup/seller")
+    public ResponseEntity<String> signupSeller(@RequestBody SellerSignupRequest req) {
+        authService.signupSeller(req);
+        return ResponseEntity.ok("Seller registered — waiting for admin approval");
+    }
+}

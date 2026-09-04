@@ -24,7 +24,7 @@ public class CustomerService {
     }
 
 
-    public void addCustomers(Customer cus) {
+    public void addCustomer(Customer cus) {
         cusRepo.save(cus);
     }
 
