@@ -47,6 +47,9 @@ public class securityConfig {
                 .requestMatchers("/sellers/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/customers/**").hasAnyRole("ADMIN", "SELLER", "CUSTOMER")
                 .requestMatchers("/customers/**").hasAnyRole("ADMIN", "CUSTOMER")
+                .requestMatchers(HttpMethod.GET, "/products/**").hasAnyRole("ADMIN", "SELLER", "CUSTOMER")
+                .requestMatchers(HttpMethod.POST, "/products/**").hasRole("SELLER")
+                .requestMatchers("/products/**").hasAnyRole("ADMIN", "SELLER")
                 .anyRequest().authenticated()
         );
         return http.build();

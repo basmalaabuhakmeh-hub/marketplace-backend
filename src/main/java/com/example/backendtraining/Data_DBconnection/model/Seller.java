@@ -6,6 +6,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.OneToMany;
 import lombok.Getter;
 import lombok.Setter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.List;
 
@@ -14,6 +15,7 @@ import java.util.List;
 @Entity
 public class Seller extends User {
 
+    @JsonIgnore
     @OneToMany(mappedBy = "seller")
     private List<Product> products;
     @Enumerated(EnumType.STRING)
