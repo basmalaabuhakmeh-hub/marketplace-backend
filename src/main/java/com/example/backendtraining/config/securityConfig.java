@@ -12,6 +12,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
@@ -41,6 +42,11 @@ public class securityConfig {
         http.authenticationProvider(authenticationProvider());
         http.authorizeHttpRequests(auth -> auth
                 .requestMatchers("/auth/**").permitAll()
+                .requestMatchers("/admin/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/sellers/**").hasAnyRole("ADMIN", "SELLER", "CUSTOMER")
+                .requestMatchers("/sellers/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/customers/**").hasAnyRole("ADMIN", "SELLER", "CUSTOMER")
+                .requestMatchers("/customers/**").hasAnyRole("ADMIN", "CUSTOMER")
                 .anyRequest().authenticated()
         );
         return http.build();
