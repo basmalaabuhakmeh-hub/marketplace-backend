@@ -4,6 +4,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.OneToMany;
 import lombok.Getter;
 import lombok.Setter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.List;
 
@@ -14,6 +15,7 @@ public class Customer extends User{
     private String address;
     private String phone;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "customer")
     private List<Order> orders;
     public Customer() {
