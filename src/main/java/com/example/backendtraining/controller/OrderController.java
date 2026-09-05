@@ -31,4 +31,19 @@ public class OrderController {
     public Order addOrder(@RequestBody OrderRequest request) {
         return orderService.addOrder(request);
     }
+
+    @PutMapping("/{id}/ship")
+    public Order shipOrder(@PathVariable int id) {
+        return orderService.shipOrder(id);
+    }
+
+    @PutMapping("/{id}/deliver")
+    public Order deliverOrder(@PathVariable int id) {
+        return orderService.deliverOrder(id);
+    }
+
+    @PutMapping("/{id}/cancel")
+    public Order cancelOrder(@PathVariable int id) {
+        return orderService.cancelOrder(id);
+    }
 }

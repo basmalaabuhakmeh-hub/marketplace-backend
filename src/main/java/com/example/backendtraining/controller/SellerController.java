@@ -25,11 +25,6 @@ public class SellerController {
         return sellerService.getSellerById(id);
     }
 
-    @PostMapping("")
-    public void addSeller(@RequestBody Seller cus){
-        sellerService.addSeller(cus);
-    }
-
     @PutMapping("")
     public void updateSeller(@RequestBody Seller cus){
         sellerService.updateSeller(cus);

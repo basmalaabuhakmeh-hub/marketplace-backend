@@ -7,8 +7,11 @@ import com.example.backendtraining.Data_DBconnection.repository.CustomerRepo;
 import com.example.backendtraining.Data_DBconnection.repository.SellerRepo;
 import com.example.backendtraining.Data_DBconnection.repository.UserRepo;
 import com.example.backendtraining.dto.CustomerSignupRequest;
+import com.example.backendtraining.dto.LoginRequest;
 import com.example.backendtraining.dto.SellerSignupRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +26,10 @@ public class AuthService {
     SellerRepo sellerRepo;
     @Autowired
     BCryptPasswordEncoder passwordEncoder;
+    @Autowired
+    AuthenticationManager authenticationManager;
+    @Autowired
+    JWTService jwtService;
 
     public void signupCustomer(CustomerSignupRequest req) {
         if (userRepo.existsByEmail(req.getEmail())) {
@@ -49,5 +56,12 @@ public class AuthService {
         seller.setBusinessName(req.getBusinessName());
         seller.setRole(Role.SELLER);
         sellerRepo.save(seller);
+    }
+
+    public String login(LoginRequest req) {
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword())
+        );
+        return jwtService.generateToken(req.getEmail());
     }
 }

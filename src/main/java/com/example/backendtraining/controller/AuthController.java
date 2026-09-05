@@ -1,6 +1,7 @@
 package com.example.backendtraining.controller;
 
 import com.example.backendtraining.dto.CustomerSignupRequest;
+import com.example.backendtraining.dto.LoginRequest;
 import com.example.backendtraining.dto.SellerSignupRequest;
 import com.example.backendtraining.service.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,5 +28,10 @@ public class AuthController {
     public ResponseEntity<String> signupSeller(@RequestBody SellerSignupRequest req) {
         authService.signupSeller(req);
         return ResponseEntity.ok("Seller registered — waiting for admin approval");
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<String> login(@RequestBody LoginRequest req) {
+        return ResponseEntity.ok(authService.login(req));
     }
 }

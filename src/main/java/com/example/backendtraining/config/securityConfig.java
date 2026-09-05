@@ -3,9 +3,10 @@ package com.example.backendtraining.config;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -14,10 +15,14 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
 public class securityConfig {
+
+    @Autowired
+    private JwtFilter jwtFilter;
 
     @Autowired
     private UserDetailsService userDetailsService;
@@ -35,9 +40,13 @@ public class securityConfig {
     }
 
     @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
+
+    @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable);
-        http.httpBasic(Customizer.withDefaults());
         http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         http.authenticationProvider(authenticationProvider());
         http.authorizeHttpRequests(auth -> auth
@@ -51,9 +60,13 @@ public class securityConfig {
                 .requestMatchers(HttpMethod.POST, "/products/**").hasRole("SELLER")
                 .requestMatchers("/products/**").hasAnyRole("ADMIN", "SELLER")
                 .requestMatchers(HttpMethod.POST, "/orders/**").hasRole("CUSTOMER")
-                .requestMatchers("/orders/**").hasAnyRole("ADMIN", "CUSTOMER")
+                .requestMatchers(HttpMethod.PUT, "/orders/*/cancel").hasAnyRole("ADMIN", "CUSTOMER")
+                .requestMatchers(HttpMethod.PUT, "/orders/*/ship").hasAnyRole("ADMIN", "SELLER")
+                .requestMatchers(HttpMethod.PUT, "/orders/*/deliver").hasAnyRole("ADMIN", "SELLER")
+                .requestMatchers("/orders/**").hasAnyRole("ADMIN", "CUSTOMER", "SELLER")
                 .anyRequest().authenticated()
         );
+        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 }

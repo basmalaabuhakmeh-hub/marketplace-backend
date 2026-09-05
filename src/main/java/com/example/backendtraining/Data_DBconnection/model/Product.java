@@ -20,6 +20,7 @@ public class Product {
     @Enumerated(EnumType.STRING)
     private ProductType productType;
     private double price;
+    private int stock;
 
     public Product() {
     }

@@ -26,11 +26,6 @@ public class CustomerController {
         return cusService.getCustomerById(id);
     }
 
-    @PostMapping("")
-    public void addCustomer(@RequestBody Customer cus){
-        cusService.addCustomer(cus);
-    }
-
     @PutMapping("")
     public void updateCustomer(@RequestBody Customer cus){
         cusService.updateCustomer(cus);

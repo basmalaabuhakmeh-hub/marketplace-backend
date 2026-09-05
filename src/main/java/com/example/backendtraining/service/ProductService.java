@@ -31,20 +31,37 @@ public class ProductService {
     }
 
     public List<Product> getProducts() {
+        User user = currentUser();
+        if (user.getRole() == Role.SELLER) {
+            Seller seller = currentSeller();
+            return productRepo.findBySeller(seller);
+        }
         return productRepo.findAll();
     }
 
     public Product getProductById(int id) {
-        return productRepo.findById(id)
+        Product product = productRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
+        User user = currentUser();
+        if (user.getRole() == Role.SELLER) {
+            Seller seller = currentSeller();
+            if (product.getSeller() == null || product.getSeller().getId() != seller.getId()) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only view your own products");
+            }
+        }
+        return product;
     }
 
     public Product addProduct(ProductRequest request) {
         Seller seller = requireAcceptedSeller();
+        if (request.getStock() < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Stock cannot be negative");
+        }
         Product product = new Product();
         product.setName(request.getName());
         product.setProductType(request.getProductType());
         product.setPrice(request.getPrice());
+        product.setStock(request.getStock());
         product.setSeller(seller);
         return productRepo.save(product);
     }
@@ -52,9 +69,13 @@ public class ProductService {
     public Product updateProduct(int id, ProductRequest request) {
         Product product = getProductById(id);
         requireOwnerOrAdmin(product);
+        if (request.getStock() < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Stock cannot be negative");
+        }
         product.setName(request.getName());
         product.setProductType(request.getProductType());
         product.setPrice(request.getPrice());
+        product.setStock(request.getStock());
         return productRepo.save(product);
     }
 
