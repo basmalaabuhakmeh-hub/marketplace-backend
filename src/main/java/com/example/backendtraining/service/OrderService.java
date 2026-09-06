@@ -43,7 +43,7 @@ public class OrderService {
         this.sellerRepo = sellerRepo;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true) //"I'm only reading data. I'm not intending to modify the database."
     public List<Order> getOrders() {
         User user = currentUser();
         if (user.getRole() == Role.ADMIN) {
@@ -73,12 +73,17 @@ public class OrderService {
         order.setCustomer(customer);
         order.setTrackNumber((int) (System.currentTimeMillis() % 1_000_000_000));
 
+        List<OrderItemRequest> items = new ArrayList<>(request.getItems());
+        // Lock products in id order so two orders cannot deadlock.
+        items.sort((a, b) -> Integer.compare(a.getProductId(), b.getProductId()));
+
         List<OrderItem> orderItems = new ArrayList<>();
-        for (OrderItemRequest itemRequest : request.getItems()) {
+        for (OrderItemRequest itemRequest : items) {
             if (itemRequest.getQuantity() <= 0) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quantity must be greater than 0");
             }
-            Product product = productRepo.findById(itemRequest.getProductId())
+            // Pessimistic lock so two customers cannot oversell the same stock.
+            Product product = productRepo.findByIdForUpdate(itemRequest.getProductId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
             if (product.getStock() < itemRequest.getQuantity()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not enough stock for " + product.getName());
