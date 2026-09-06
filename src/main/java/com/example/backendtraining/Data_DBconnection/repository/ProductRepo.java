@@ -3,6 +3,8 @@ package com.example.backendtraining.Data_DBconnection.repository;
 import com.example.backendtraining.Data_DBconnection.model.Product;
 import com.example.backendtraining.Data_DBconnection.model.Seller;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -21,4 +23,6 @@ public interface ProductRepo extends JpaRepository<Product, Integer> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Product p WHERE p.id = :id")
     Optional<Product> findByIdForUpdate(@Param("id") int id);
+
+    Page<Product> findBySeller(Seller seller, Pageable pageable);
 }

@@ -2,6 +2,7 @@ package com.example.backendtraining.controller;
 
 import com.example.backendtraining.Data_DBconnection.model.Product;
 import com.example.backendtraining.dto.ProductRequest;
+import com.example.backendtraining.dto.ProductResponse;
 import com.example.backendtraining.service.ProductService;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,8 +19,9 @@ public class ProductController {
     }
 
     @GetMapping("")
-    public List<Product> getProducts() {
-        return productService.getProducts();
+    public ProductResponse getProducts(@RequestParam(value = "pageNo", defaultValue = "0", required = false)int pageNo,
+                                       @RequestParam(value = "pageSize", defaultValue = "10", required = false) int pageSize) {
+        return productService.getProducts(pageNo, pageSize);
     }
 
     @GetMapping("/{id}")
@@ -30,6 +32,11 @@ public class ProductController {
     @PostMapping("")
     public Product addProduct(@RequestBody ProductRequest request) {
         return productService.addProduct(request);
+    }
+
+    @PostMapping("/bulk")
+    public List<Product> addProducts(@RequestBody List<ProductRequest> requests) {
+        return productService.addProducts(requests);
     }
 
     @PutMapping("/{id}")

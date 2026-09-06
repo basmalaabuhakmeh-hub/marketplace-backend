@@ -9,12 +9,17 @@ import com.example.backendtraining.Data_DBconnection.repository.ProductRepo;
 import com.example.backendtraining.Data_DBconnection.repository.SellerRepo;
 import com.example.backendtraining.Data_DBconnection.repository.UserRepo;
 import com.example.backendtraining.dto.ProductRequest;
+import com.example.backendtraining.dto.ProductResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -30,13 +35,23 @@ public class ProductService {
         this.userRepo = userRepo;
     }
 
-    public List<Product> getProducts() {
+    public ProductResponse getProducts(int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize);
         User user = currentUser();
+        Page<Product> products;
         if (user.getRole() == Role.SELLER) {
-            Seller seller = currentSeller();
-            return productRepo.findBySeller(seller);
+            products = productRepo.findBySeller(currentSeller(), pageable);
+        } else {
+            products = productRepo.findAll(pageable);
         }
-        return productRepo.findAll();
+        ProductResponse productResponse = new ProductResponse();
+        productResponse.setContent(products.getContent());
+        productResponse.setPageNo(products.getNumber());
+        productResponse.setPageSize(products.getSize());
+        productResponse.setTotalElements(products.getTotalElements());
+        productResponse.setTotalPages(products.getTotalPages());
+        productResponse.setLast(products.isLast());
+        return productResponse;
     }
 
     public Product getProductById(int id) {
@@ -64,6 +79,14 @@ public class ProductService {
         product.setStock(request.getStock());
         product.setSeller(seller);
         return productRepo.save(product);
+    }
+
+    public List<Product> addProducts(List<ProductRequest> requests) {
+        List<Product> saved = new ArrayList<>();
+        for (ProductRequest request : requests) {
+            saved.add(addProduct(request));
+        }
+        return saved;
     }
 
     public Product updateProduct(int id, ProductRequest request) {
