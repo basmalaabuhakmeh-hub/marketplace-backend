@@ -13,7 +13,7 @@ import java.util.List;
 @Entity
 public class Customer extends User{
     private String address;
-    private String phone;
+    private String phoneNumber;
 
     @JsonIgnore
     @OneToMany(mappedBy = "customer")
@@ -22,23 +22,23 @@ public class Customer extends User{
         this.setRole(Role.CUSTOMER);
     }
 
-    public Customer(String address, String phone, List<Order> orders) {
+    public Customer(String address, String phoneNumber, List<Order> orders) {
         this.address = address;
-        this.phone = phone;
+        this.phoneNumber = phoneNumber;
         this.orders = orders;
         this.setRole(Role.CUSTOMER);
     }
 
-    public Customer(int id, String name, String email, String password, String address, String phone, List<Order> orders) {
+    public Customer(int id, String name, String email, String password, String address, String phoneNumber, List<Order> orders) {
         super(id, name, Role.CUSTOMER, email, password);
         this.address = address;
-        this.phone = phone;
+        this.phoneNumber = phoneNumber;
         this.orders = orders;
     }
 
-    public Customer(String address, String phone) {
+    public Customer(String address, String phoneNumber) {
         this.address = address;
-        this.phone = phone;
+        this.phoneNumber = phoneNumber;
         this.setRole(Role.CUSTOMER);
     }
 

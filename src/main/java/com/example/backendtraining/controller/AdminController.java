@@ -1,5 +1,6 @@
 package com.example.backendtraining.controller;
 
+import com.example.backendtraining.Data_DBconnection.model.Driver;
 import com.example.backendtraining.Data_DBconnection.model.Seller;
 import com.example.backendtraining.service.AdminService;
 import org.springframework.web.bind.annotation.*;
@@ -29,5 +30,20 @@ public class AdminController {
     @PutMapping("/sellers/{id}/reject")
     public Seller rejectSeller(@PathVariable int id) {
         return adminService.rejectSeller(id);
+    }
+
+    @GetMapping("/drivers/pending")
+    public List<Driver> getPendingDrivers() {
+        return adminService.getPendingDrivers();
+    }
+
+    @PutMapping("/drivers/{id}/accept")
+    public Driver acceptDriver(@PathVariable int id) {
+        return adminService.acceptDriver(id);
+    }
+
+    @PutMapping("/drivers/{id}/reject")
+    public Driver rejectDriver(@PathVariable int id) {
+        return adminService.rejectDriver(id);
     }
 }

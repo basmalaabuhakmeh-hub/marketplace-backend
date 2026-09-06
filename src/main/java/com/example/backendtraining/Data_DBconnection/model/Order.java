@@ -21,6 +21,10 @@ public class Order {
     @JoinColumn(name = "customer_id")
     private Customer customer;
 
+    @ManyToOne
+    @JoinColumn(name = "driver_id")
+    private Driver driver;
+
     private int trackNumber;
 
     @Enumerated(EnumType.STRING)
@@ -35,9 +39,10 @@ public class Order {
     public Order() {
     }
 
-    public Order(int id, Customer customer, int trackNumber, LocalDateTime createdAt, List<OrderItem> orderItems) {
+    public Order(int id, Customer customer, Driver driver, int trackNumber, LocalDateTime createdAt, List<OrderItem> orderItems) {
         this.id = id;
         this.customer = customer;
+        this.driver = driver;
         this.trackNumber = trackNumber;
         this.createdAt = createdAt;
         this.orderItems = orderItems;

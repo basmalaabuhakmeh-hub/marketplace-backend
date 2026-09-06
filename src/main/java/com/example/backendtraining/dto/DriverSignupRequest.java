@@ -5,10 +5,10 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class CustomerSignupRequest {
+public class DriverSignupRequest {
     private String name;
     private String email;
     private String password;
-    private String address;
     private String phoneNumber;
 }
+

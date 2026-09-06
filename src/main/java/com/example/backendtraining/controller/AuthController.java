@@ -1,6 +1,7 @@
 package com.example.backendtraining.controller;
 
 import com.example.backendtraining.dto.CustomerSignupRequest;
+import com.example.backendtraining.dto.DriverSignupRequest;
 import com.example.backendtraining.dto.LoginRequest;
 import com.example.backendtraining.dto.SellerSignupRequest;
 import com.example.backendtraining.service.AuthService;
@@ -28,6 +29,12 @@ public class AuthController {
     public ResponseEntity<String> signupSeller(@RequestBody SellerSignupRequest req) {
         authService.signupSeller(req);
         return ResponseEntity.ok("Seller registered — waiting for admin approval");
+    }
+
+    @PostMapping("/signup/driver")
+    public ResponseEntity<String> signupDriver(@RequestBody DriverSignupRequest req) {
+        authService.signupDriver(req);
+        return ResponseEntity.ok("Driver registered — waiting for admin approval");
     }
 
     @PostMapping("/login")

@@ -1,6 +1,8 @@
 package com.example.backendtraining.service;
 
 import com.example.backendtraining.Data_DBconnection.model.Customer;
+import com.example.backendtraining.Data_DBconnection.model.Driver;
+import com.example.backendtraining.Data_DBconnection.model.DriverStatus;
 import com.example.backendtraining.Data_DBconnection.model.Order;
 import com.example.backendtraining.Data_DBconnection.model.OrderItem;
 import com.example.backendtraining.Data_DBconnection.model.OrderStatus;
@@ -9,6 +11,7 @@ import com.example.backendtraining.Data_DBconnection.model.Role;
 import com.example.backendtraining.Data_DBconnection.model.Seller;
 import com.example.backendtraining.Data_DBconnection.model.User;
 import com.example.backendtraining.Data_DBconnection.repository.CustomerRepo;
+import com.example.backendtraining.Data_DBconnection.repository.DriverRepo;
 import com.example.backendtraining.Data_DBconnection.repository.OrderRepo;
 import com.example.backendtraining.Data_DBconnection.repository.ProductRepo;
 import com.example.backendtraining.Data_DBconnection.repository.SellerRepo;
@@ -33,14 +36,16 @@ public class OrderService {
     private final CustomerRepo customerRepo;
     private final UserRepo userRepo;
     private final SellerRepo sellerRepo;
+    private final DriverRepo driverRepo;
 
     public OrderService(OrderRepo orderRepo, ProductRepo productRepo, CustomerRepo customerRepo,
-                        UserRepo userRepo, SellerRepo sellerRepo) {
+                        UserRepo userRepo, SellerRepo sellerRepo, DriverRepo driverRepo) {
         this.orderRepo = orderRepo;
         this.productRepo = productRepo;
         this.customerRepo = customerRepo;
         this.userRepo = userRepo;
         this.sellerRepo = sellerRepo;
+        this.driverRepo = driverRepo;
     }
 
     @Transactional(readOnly = true) //"I'm only reading data. I'm not intending to modify the database."
@@ -51,6 +56,9 @@ public class OrderService {
         }
         if (user.getRole() == Role.SELLER) {
             return orderRepo.findBySellerId(currentSeller().getId());
+        }
+        if (user.getRole() == Role.DRIVER) {
+            return orderRepo.findByDriver(currentDriver());
         }
         return orderRepo.findByCustomer(currentCustomer());
     }
@@ -110,6 +118,22 @@ public class OrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only PLACED orders can be shipped");
         }
         order.setOrderStatus(OrderStatus.SHIPPED);
+        return orderRepo.save(order);
+    }
+
+    @Transactional
+    public Order assignDriver(int orderId, int driverId) {
+        Order order = findOrder(orderId);
+        requireCanUpdateStatus(order);
+        if (order.getOrderStatus() != OrderStatus.SHIPPED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only SHIPPED orders can be assigned a driver");
+        }
+        Driver driver = driverRepo.findById(driverId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Driver not found"));
+        if (driver.getStatus() != DriverStatus.ACCEPTED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Driver is not approved");
+        }
+        order.setDriver(driver);
         return orderRepo.save(order);
     }
 
@@ -178,6 +202,10 @@ public class OrderService {
             }
             return;
         }
+        if (user.getRole() == Role.DRIVER) {
+            requireAssignedDriver(order);
+            return;
+        }
         requireOwner(order);
     }
 
@@ -189,7 +217,11 @@ public class OrderService {
         if (user.getRole() == Role.SELLER && containsSellerProduct(order, currentSeller())) {
             return;
         }
-        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only admin or the product seller can update status");
+        if (user.getRole() == Role.DRIVER) {
+            requireAssignedDriver(order);
+            return;
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only admin, the product seller, or the assigned driver can update status");
     }
 
     private boolean containsSellerProduct(Order order, Seller seller) {
@@ -214,9 +246,21 @@ public class OrderService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Only customers can place orders"));
     }
 
+    private void requireAssignedDriver(Order order) {
+        Driver driver = currentDriver();
+        if (order.getDriver() == null || order.getDriver().getId() != driver.getId()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only access orders assigned to you");
+        }
+    }
+
     private Seller currentSeller() {
         return sellerRepo.findByEmail(currentEmail())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Seller not found"));
+    }
+
+    private Driver currentDriver() {
+        return driverRepo.findByEmail(currentEmail())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Driver not found"));
     }
 
     private User currentUser() {

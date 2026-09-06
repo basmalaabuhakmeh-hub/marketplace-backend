@@ -51,6 +51,9 @@ public class UserPrincipal implements UserDetails {
         if (user instanceof Seller seller) {
             return seller.getStatus() != SellerStatus.REJECTED;
         }
+        if (user instanceof Driver driver) {
+            return driver.getStatus() != DriverStatus.REJECTED;
+        }
         return true;
     }
 }

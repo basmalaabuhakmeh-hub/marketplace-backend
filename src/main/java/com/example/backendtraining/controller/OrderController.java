@@ -37,6 +37,11 @@ public class OrderController {
         return orderService.shipOrder(id);
     }
 
+    @PutMapping("/{id}/assign/{driverId}")
+    public Order assignDriver(@PathVariable int id, @PathVariable int driverId) {
+        return orderService.assignDriver(id, driverId);
+    }
+
     @PutMapping("/{id}/deliver")
     public Order deliverOrder(@PathVariable int id) {
         return orderService.deliverOrder(id);

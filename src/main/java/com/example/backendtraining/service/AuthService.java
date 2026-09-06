@@ -1,12 +1,15 @@
 package com.example.backendtraining.service;
 
 import com.example.backendtraining.Data_DBconnection.model.Customer;
+import com.example.backendtraining.Data_DBconnection.model.Driver;
 import com.example.backendtraining.Data_DBconnection.model.Role;
 import com.example.backendtraining.Data_DBconnection.model.Seller;
 import com.example.backendtraining.Data_DBconnection.repository.CustomerRepo;
+import com.example.backendtraining.Data_DBconnection.repository.DriverRepo;
 import com.example.backendtraining.Data_DBconnection.repository.SellerRepo;
 import com.example.backendtraining.Data_DBconnection.repository.UserRepo;
 import com.example.backendtraining.dto.CustomerSignupRequest;
+import com.example.backendtraining.dto.DriverSignupRequest;
 import com.example.backendtraining.dto.LoginRequest;
 import com.example.backendtraining.dto.SellerSignupRequest;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +28,8 @@ public class AuthService {
     @Autowired
     SellerRepo sellerRepo;
     @Autowired
+    DriverRepo driverRepo;
+    @Autowired
     BCryptPasswordEncoder passwordEncoder;
     @Autowired
     AuthenticationManager authenticationManager;
@@ -40,7 +45,7 @@ public class AuthService {
         customer.setEmail(req.getEmail());
         customer.setPassword(passwordEncoder.encode(req.getPassword()));
         customer.setAddress(req.getAddress());
-        customer.setPhone(req.getPhone());
+        customer.setPhoneNumber(req.getPhoneNumber());
         customer.setRole(Role.CUSTOMER);  // or rely on constructor
         customerRepo.save(customer);
     }
@@ -56,6 +61,19 @@ public class AuthService {
         seller.setBusinessName(req.getBusinessName());
         seller.setRole(Role.SELLER);
         sellerRepo.save(seller);
+    }
+
+    public void signupDriver(DriverSignupRequest req) {
+        if (userRepo.existsByEmail(req.getEmail())){
+            throw new RuntimeException("Email already exists");
+        }
+        Driver driver = new Driver();
+        driver.setName(req.getName());
+        driver.setEmail(req.getEmail());
+        driver.setPassword(passwordEncoder.encode(req.getPassword()));
+        driver.setPhoneNumber(req.getPhoneNumber());
+        driver.setRole(Role.DRIVER);
+        driverRepo.save(driver);
     }
 
     public String login(LoginRequest req) {
