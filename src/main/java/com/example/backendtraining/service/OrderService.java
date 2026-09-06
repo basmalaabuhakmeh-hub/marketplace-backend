@@ -145,12 +145,20 @@ public class OrderService {
         if (order.getOrderItems() == null) {
             return;
         }
-        for (OrderItem item : order.getOrderItems()) {
-            Product product = item.getProduct();
-            if (product != null) {
-                product.setStock(product.getStock() + item.getQuantity());
-                productRepo.save(product);
+        List<OrderItem> items = new ArrayList<>(order.getOrderItems());
+        // Lock products in id order so cancel cannot deadlock with addOrder.
+        items.sort((a, b) -> Integer.compare(
+                a.getProduct() != null ? a.getProduct().getId() : 0,
+                b.getProduct() != null ? b.getProduct().getId() : 0));
+        for (OrderItem item : items) {
+            if (item.getProduct() == null) {
+                continue;
             }
+            // Pessimistic lock so restore stock cannot race with a new order.
+            Product product = productRepo.findByIdForUpdate(item.getProduct().getId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
+            product.setStock(product.getStock() + item.getQuantity());
+            productRepo.save(product);
         }
     }
 
