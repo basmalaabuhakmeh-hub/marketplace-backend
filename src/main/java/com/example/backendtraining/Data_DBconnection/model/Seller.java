@@ -4,7 +4,9 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.Index;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -14,6 +16,7 @@ import java.util.List;
 @Setter
 @Getter
 @Entity
+@Table(indexes = @Index(name = "idx_seller_status", columnList = "status"))
 public class Seller extends User {
 
     @JsonIgnore

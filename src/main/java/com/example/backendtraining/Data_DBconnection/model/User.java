@@ -9,7 +9,10 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 @Setter
 @Getter
 @Inheritance(strategy = InheritanceType.JOINED)
-@Table(name = "users")
+@Table(
+        name = "users",
+        indexes = @Index(name = "idx_users_deleted", columnList = "deleted")
+)
 @Entity
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class User {

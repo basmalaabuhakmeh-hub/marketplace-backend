@@ -9,6 +9,10 @@ import lombok.Setter;
 @Setter
 @Getter
 @Entity
+@Table(indexes = {
+        @Index(name = "idx_product_deleted", columnList = "deleted"),
+        @Index(name = "idx_product_seller_deleted", columnList = "seller_id, deleted")
+})
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @NamedEntityGraph(name = "Product.withSeller", attributeNodes = @NamedAttributeNode("seller"))
 public class Product {

@@ -11,8 +11,20 @@ import java.util.List;
 
 @Getter
 @Setter
-@Table(name = "orders")
+@Table(
+        name = "orders",
+        indexes = @Index(name = "idx_orders_status", columnList = "orderStatus")
+)
 @Entity
+// The graph says: when someone uses the name "Order.details", load this tree in one go.
+// Order
+//  ├── customer
+//  ├── driver
+//  └── orderItems
+//       └── product
+//            └── seller
+// attributeNodes = “load these fields on Order”
+// subgraph = “and while you’re there, also load fields inside those objects”
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @NamedEntityGraph(
         name = "Order.details",
