@@ -16,21 +16,27 @@ public class CustomerService {
     CustomerRepo cusRepo;
 
     public List<Customer> getCustomers() {
-        return cusRepo.findAll();
+        return cusRepo.findByDeletedFalse();
     }
 
     public Customer getCustomerById(int id) {
-        return cusRepo.findById(id)
+        Customer customer = cusRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Customer not found"));
+        if (customer.isDeleted()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Customer not found");
+        }
+        return customer;
     }
 
     public void updateCustomer(Customer cus) {
-        getCustomerById(cus.getId());
+        Customer existing = getCustomerById(cus.getId());
+        cus.setDeleted(existing.isDeleted());
         cusRepo.save(cus);
     }
 
     public void deleteCustomer(int id) {
-        getCustomerById(id);
-        cusRepo.deleteById(id);
+        Customer customer = getCustomerById(id);
+        customer.setDeleted(true);
+        cusRepo.save(customer);
     }
 }

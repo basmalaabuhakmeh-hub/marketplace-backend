@@ -24,7 +24,7 @@ public class AdminService {
     }
 
     public List<Seller> getPendingSellers() {
-        return sellerRepo.findByStatus(SellerStatus.PENDING);
+        return sellerRepo.findByStatusAndDeletedFalse(SellerStatus.PENDING);
     }
 
     public Seller acceptSeller(int id) {
@@ -38,12 +38,15 @@ public class AdminService {
     private Seller updateStatus(int id, SellerStatus status) {
         Seller seller = sellerRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Seller not found"));
+        if (seller.isDeleted()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Seller not found");
+        }
         seller.setStatus(status);
         return sellerRepo.save(seller);
     }
 
     public List<Driver> getPendingDrivers() {
-        return driverRepo.findByStatus(DriverStatus.PENDING);
+        return driverRepo.findByStatusAndDeletedFalse(DriverStatus.PENDING);
     }
 
     public Driver acceptDriver(int id) {
@@ -57,6 +60,9 @@ public class AdminService {
     private Driver updateDriverStatus(int id, DriverStatus status) {
         Driver driver = driverRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Driver not found"));
+        if (driver.isDeleted()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Driver not found");
+        }
         driver.setStatus(status);
         return driverRepo.save(driver);
     }

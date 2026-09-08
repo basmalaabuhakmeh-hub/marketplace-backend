@@ -1,5 +1,6 @@
 package com.example.backendtraining.Data_DBconnection.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -24,6 +25,9 @@ public class Product {
     private ProductType productType;
     private double price;
     private int stock;
+
+    @JsonIgnore
+    private boolean deleted = false;
 
     public Product() {
     }

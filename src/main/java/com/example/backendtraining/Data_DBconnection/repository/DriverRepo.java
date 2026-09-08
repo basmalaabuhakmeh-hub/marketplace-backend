@@ -12,4 +12,6 @@ import java.util.Optional;
 public interface DriverRepo extends JpaRepository<Driver, Integer> {
     Optional<Driver> findByEmail(String email);
     List<Driver> findByStatus(DriverStatus status);
+    List<Driver> findByStatusAndDeletedFalse(DriverStatus status);
+    List<Driver> findByDeletedFalse();
 }

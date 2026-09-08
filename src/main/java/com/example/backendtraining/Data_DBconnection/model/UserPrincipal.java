@@ -48,6 +48,9 @@ public class UserPrincipal implements UserDetails {
 
     @Override
     public boolean isEnabled() {
+        if (user.isDeleted()) {
+            return false;
+        }
         if (user instanceof Seller seller) {
             return seller.getStatus() != SellerStatus.REJECTED;
         }

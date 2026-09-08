@@ -26,10 +26,11 @@ public interface ProductRepo extends JpaRepository<Product, Integer> {
     Optional<Product> findByIdForUpdate(@Param("id") int id);
 
     @EntityGraph("Product.withSeller")
-    Page<Product> findBySeller(Seller seller, Pageable pageable);
+    Page<Product> findBySellerAndDeletedFalse(Seller seller, Pageable pageable);
 
     @EntityGraph("Product.withSeller")
-    @Query(value = "SELECT p FROM Product p", countQuery = "SELECT COUNT(p) FROM Product p")
+    @Query(value = "SELECT p FROM Product p WHERE p.deleted = false",
+            countQuery = "SELECT COUNT(p) FROM Product p WHERE p.deleted = false")
     Page<Product> findAllWithSeller(Pageable pageable);
 
     @EntityGraph("Product.withSeller")

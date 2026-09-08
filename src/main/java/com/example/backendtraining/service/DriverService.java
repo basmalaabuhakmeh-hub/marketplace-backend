@@ -1,8 +1,6 @@
 package com.example.backendtraining.service;
 
-import com.example.backendtraining.Data_DBconnection.model.Customer;
 import com.example.backendtraining.Data_DBconnection.model.Driver;
-import com.example.backendtraining.Data_DBconnection.repository.CustomerRepo;
 import com.example.backendtraining.Data_DBconnection.repository.DriverRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -17,21 +15,27 @@ public class DriverService {
     DriverRepo driverRepo;
 
     public List<Driver> getDrivers() {
-        return driverRepo.findAll();
+        return driverRepo.findByDeletedFalse();
     }
 
     public Driver getDriverById(int id) {
-        return driverRepo.findById(id)
+        Driver driver = driverRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Driver not found"));
+        if (driver.isDeleted()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Driver not found");
+        }
+        return driver;
     }
 
     public void updateDriver(Driver driver) {
-        getDriverById(driver.getId());
+        Driver existing = getDriverById(driver.getId());
+        driver.setDeleted(existing.isDeleted());
         driverRepo.save(driver);
     }
 
     public void deleteDriver(int id) {
-        getDriverById(id);
-        driverRepo.deleteById(id);
+        Driver driver = getDriverById(id);
+        driver.setDeleted(true);
+        driverRepo.save(driver);
     }
 }

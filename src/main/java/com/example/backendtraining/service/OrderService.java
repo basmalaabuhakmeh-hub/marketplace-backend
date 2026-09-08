@@ -93,6 +93,9 @@ public class OrderService {
             // Pessimistic lock so two customers cannot oversell the same stock.
             Product product = productRepo.findByIdForUpdate(itemRequest.getProductId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
+            if (product.isDeleted()) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found");
+            }
             // Initialize lazy seller while the transaction is open (JSON after commit).
             if (product.getSeller() != null) {
                 product.getSeller().getId();
@@ -134,7 +137,7 @@ public class OrderService {
         }
         Driver driver = driverRepo.findById(driverId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Driver not found"));
-        if (driver.getStatus() != DriverStatus.ACCEPTED) {
+        if (driver.isDeleted() || driver.getStatus() != DriverStatus.ACCEPTED) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Driver is not approved");
         }
         order.setDriver(driver);

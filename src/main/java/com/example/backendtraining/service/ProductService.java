@@ -42,7 +42,7 @@ public class ProductService {
         User user = currentUser();
         Page<Product> products;
         if (user.getRole() == Role.SELLER) {
-            products = productRepo.findBySeller(currentSeller(), pageable);
+            products = productRepo.findBySellerAndDeletedFalse(currentSeller(), pageable);
         } else {
             products = productRepo.findAllWithSeller(pageable);
         }
@@ -60,6 +60,9 @@ public class ProductService {
     public Product getProductById(int id) {
         Product product = productRepo.findByIdWithSeller(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
+        if (product.isDeleted()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found");
+        }
         User user = currentUser();
         if (user.getRole() == Role.SELLER) {
             Seller seller = currentSeller();
@@ -108,7 +111,8 @@ public class ProductService {
     public void deleteProduct(int id) {
         Product product = getProductById(id);
         requireOwnerOrAdmin(product);
-        productRepo.deleteById(id);
+        product.setDeleted(true);
+        productRepo.save(product);
     }
 
     private Seller requireAcceptedSeller() {
