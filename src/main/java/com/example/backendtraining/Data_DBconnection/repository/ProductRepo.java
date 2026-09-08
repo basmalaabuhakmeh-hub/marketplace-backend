@@ -5,6 +5,7 @@ import com.example.backendtraining.Data_DBconnection.model.Seller;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -24,5 +25,14 @@ public interface ProductRepo extends JpaRepository<Product, Integer> {
     @Query("SELECT p FROM Product p WHERE p.id = :id")
     Optional<Product> findByIdForUpdate(@Param("id") int id);
 
+    @EntityGraph("Product.withSeller")
     Page<Product> findBySeller(Seller seller, Pageable pageable);
+
+    @EntityGraph("Product.withSeller")
+    @Query(value = "SELECT p FROM Product p", countQuery = "SELECT COUNT(p) FROM Product p")
+    Page<Product> findAllWithSeller(Pageable pageable);
+
+    @EntityGraph("Product.withSeller")
+    @Query("SELECT p FROM Product p WHERE p.id = :id")
+    Optional<Product> findByIdWithSeller(@Param("id") int id);
 }

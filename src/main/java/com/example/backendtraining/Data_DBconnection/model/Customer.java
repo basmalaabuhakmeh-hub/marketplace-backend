@@ -1,6 +1,7 @@
 package com.example.backendtraining.Data_DBconnection.model;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.OneToMany;
 import lombok.Getter;
 import lombok.Setter;
@@ -16,7 +17,7 @@ public class Customer extends User{
     private String phoneNumber;
 
     @JsonIgnore
-    @OneToMany(mappedBy = "customer")
+    @OneToMany(mappedBy = "customer", fetch = FetchType.LAZY)
     private List<Order> orders;
     public Customer() {
         this.setRole(Role.CUSTOMER);

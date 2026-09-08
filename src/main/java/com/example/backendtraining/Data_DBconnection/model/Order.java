@@ -1,5 +1,6 @@
 package com.example.backendtraining.Data_DBconnection.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -12,16 +13,35 @@ import java.util.List;
 @Setter
 @Table(name = "orders")
 @Entity
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@NamedEntityGraph(
+        name = "Order.details",
+        attributeNodes = {
+                @NamedAttributeNode("customer"),
+                @NamedAttributeNode("driver"),
+                @NamedAttributeNode(value = "orderItems", subgraph = "orderItems")
+        },
+        subgraphs = {
+                @NamedSubgraph(
+                        name = "orderItems",
+                        attributeNodes = @NamedAttributeNode(value = "product", subgraph = "product")
+                ),
+                @NamedSubgraph(
+                        name = "product",
+                        attributeNodes = @NamedAttributeNode("seller")
+                )
+        }
+)
 public class Order {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id")
     private Customer customer;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "driver_id")
     private Driver driver;
 
@@ -33,7 +53,7 @@ public class Order {
     @CreationTimestamp
     private LocalDateTime createdAt;
 
-    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<OrderItem> orderItems;
 
     public Order() {

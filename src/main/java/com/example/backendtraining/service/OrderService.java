@@ -52,7 +52,7 @@ public class OrderService {
     public List<Order> getOrders() {
         User user = currentUser();
         if (user.getRole() == Role.ADMIN) {
-            return orderRepo.findAll();
+            return orderRepo.findAllWithDetails();
         }
         if (user.getRole() == Role.SELLER) {
             return orderRepo.findBySellerId(currentSeller().getId());
@@ -93,6 +93,10 @@ public class OrderService {
             // Pessimistic lock so two customers cannot oversell the same stock.
             Product product = productRepo.findByIdForUpdate(itemRequest.getProductId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
+            // Initialize lazy seller while the transaction is open (JSON after commit).
+            if (product.getSeller() != null) {
+                product.getSeller().getId();
+            }
             if (product.getStock() < itemRequest.getQuantity()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not enough stock for " + product.getName());
             }
@@ -187,7 +191,7 @@ public class OrderService {
     }
 
     private Order findOrder(int id) {
-        return orderRepo.findById(id)
+        return orderRepo.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
     }
 

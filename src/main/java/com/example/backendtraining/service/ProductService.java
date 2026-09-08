@@ -17,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
@@ -35,6 +36,7 @@ public class ProductService {
         this.userRepo = userRepo;
     }
 
+    @Transactional(readOnly = true)
     public ProductResponse getProducts(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize);
         User user = currentUser();
@@ -42,7 +44,7 @@ public class ProductService {
         if (user.getRole() == Role.SELLER) {
             products = productRepo.findBySeller(currentSeller(), pageable);
         } else {
-            products = productRepo.findAll(pageable);
+            products = productRepo.findAllWithSeller(pageable);
         }
         ProductResponse productResponse = new ProductResponse();
         productResponse.setContent(products.getContent());
@@ -54,8 +56,9 @@ public class ProductService {
         return productResponse;
     }
 
+    @Transactional(readOnly = true)
     public Product getProductById(int id) {
-        Product product = productRepo.findById(id)
+        Product product = productRepo.findByIdWithSeller(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
         User user = currentUser();
         if (user.getRole() == Role.SELLER) {

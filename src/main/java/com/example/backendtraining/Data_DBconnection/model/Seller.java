@@ -3,6 +3,7 @@ package com.example.backendtraining.Data_DBconnection.model;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.OneToMany;
 import lombok.Getter;
 import lombok.Setter;
@@ -16,7 +17,7 @@ import java.util.List;
 public class Seller extends User {
 
     @JsonIgnore
-    @OneToMany(mappedBy = "seller")
+    @OneToMany(mappedBy = "seller", fetch = FetchType.LAZY)
     private List<Product> products;
     @Enumerated(EnumType.STRING)
     private SellerStatus status = SellerStatus.PENDING;
