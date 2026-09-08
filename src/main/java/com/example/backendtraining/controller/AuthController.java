@@ -2,7 +2,9 @@ package com.example.backendtraining.controller;
 
 import com.example.backendtraining.dto.CustomerSignupRequest;
 import com.example.backendtraining.dto.DriverSignupRequest;
+import com.example.backendtraining.dto.ForgotPasswordRequest;
 import com.example.backendtraining.dto.LoginRequest;
+import com.example.backendtraining.dto.ResetPasswordRequest;
 import com.example.backendtraining.dto.SellerSignupRequest;
 import com.example.backendtraining.service.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,5 +42,17 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<String> login(@RequestBody LoginRequest req) {
         return ResponseEntity.ok(authService.login(req));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<String> forgotPassword(@RequestBody ForgotPasswordRequest req) {
+        authService.forgotPassword(req);
+        return ResponseEntity.ok("OTP sent");
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest req) {
+        authService.resetPassword(req);
+        return ResponseEntity.ok("Password updated");
     }
 }
