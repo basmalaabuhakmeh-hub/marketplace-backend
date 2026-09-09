@@ -6,6 +6,7 @@ import com.example.backendtraining.Data_DBconnection.model.DriverStatus;
 import com.example.backendtraining.Data_DBconnection.model.Order;
 import com.example.backendtraining.Data_DBconnection.model.OrderItem;
 import com.example.backendtraining.Data_DBconnection.model.OrderStatus;
+import com.example.backendtraining.Data_DBconnection.model.OrderStatusHistory;
 import com.example.backendtraining.Data_DBconnection.model.Product;
 import com.example.backendtraining.Data_DBconnection.model.Role;
 import com.example.backendtraining.Data_DBconnection.model.Seller;
@@ -13,6 +14,7 @@ import com.example.backendtraining.Data_DBconnection.model.User;
 import com.example.backendtraining.Data_DBconnection.repository.CustomerRepo;
 import com.example.backendtraining.Data_DBconnection.repository.DriverRepo;
 import com.example.backendtraining.Data_DBconnection.repository.OrderRepo;
+import com.example.backendtraining.Data_DBconnection.repository.OrderStatusHistoryRepo;
 import com.example.backendtraining.Data_DBconnection.repository.ProductRepo;
 import com.example.backendtraining.Data_DBconnection.repository.SellerRepo;
 import com.example.backendtraining.Data_DBconnection.repository.UserRepo;
@@ -37,15 +39,20 @@ public class OrderService {
     private final UserRepo userRepo;
     private final SellerRepo sellerRepo;
     private final DriverRepo driverRepo;
+    private final OrderStatusHistoryRepo orderStatusHistoryRepo;
+    private final EmailService emailService;
 
     public OrderService(OrderRepo orderRepo, ProductRepo productRepo, CustomerRepo customerRepo,
-                        UserRepo userRepo, SellerRepo sellerRepo, DriverRepo driverRepo) {
+                        UserRepo userRepo, SellerRepo sellerRepo, DriverRepo driverRepo,
+                        OrderStatusHistoryRepo orderStatusHistoryRepo, EmailService emailService) {
         this.orderRepo = orderRepo;
         this.productRepo = productRepo;
         this.customerRepo = customerRepo;
         this.userRepo = userRepo;
         this.sellerRepo = sellerRepo;
         this.driverRepo = driverRepo;
+        this.orderStatusHistoryRepo = orderStatusHistoryRepo;
+        this.emailService = emailService;
     }
 
     @Transactional(readOnly = true) //"I'm only reading data. I'm not intending to modify the database."
@@ -96,10 +103,6 @@ public class OrderService {
             if (product.isDeleted()) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found");
             }
-            // Initialize lazy seller while the transaction is open (JSON after commit).
-            if (product.getSeller() != null) {
-                product.getSeller().getId();
-            }
             if (product.getStock() < itemRequest.getQuantity()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not enough stock for " + product.getName());
             }
@@ -114,18 +117,36 @@ public class OrderService {
             orderItems.add(item);
         }
         order.setOrderItems(orderItems);
-        return orderRepo.save(order);
+        Order saved = orderRepo.save(order);
+        recordStatusChange(saved, null, OrderStatus.PLACED);
+        return findOrder(saved.getId());
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrderStatusHistory> getOrderHistory(int id) {
+        Order order = findOrder(id);
+        requireCanView(order);
+        return orderStatusHistoryRepo.findByOrderIdOrderByChangedAtAsc(id);
+    }
+
+    @Transactional
+    public Order acceptOrder(int id) {
+        Order order = findOrder(id);
+        requireCanUpdateStatus(order);
+        if (order.getOrderStatus() != OrderStatus.PLACED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only PLACED orders can be accepted");
+        }
+        return applyStatus(order, OrderStatus.ACCEPTED);
     }
 
     @Transactional
     public Order shipOrder(int id) {
         Order order = findOrder(id);
         requireCanUpdateStatus(order);
-        if (order.getOrderStatus() != OrderStatus.PLACED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only PLACED orders can be shipped");
+        if (order.getOrderStatus() != OrderStatus.ACCEPTED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only ACCEPTED orders can be shipped");
         }
-        order.setOrderStatus(OrderStatus.SHIPPED);
-        return orderRepo.save(order);
+        return applyStatus(order, OrderStatus.SHIPPED);
     }
 
     @Transactional
@@ -151,8 +172,7 @@ public class OrderService {
         if (order.getOrderStatus() != OrderStatus.SHIPPED) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only SHIPPED orders can be delivered");
         }
-        order.setOrderStatus(OrderStatus.DELIVERED);
-        return orderRepo.save(order);
+        return applyStatus(order, OrderStatus.DELIVERED);
     }
 
     @Transactional
@@ -168,8 +188,33 @@ public class OrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only PLACED orders can be cancelled");
         }
         restoreStock(order);
-        order.setOrderStatus(OrderStatus.CANCELLED);
-        return orderRepo.save(order);
+        return applyStatus(order, OrderStatus.CANCELLED);
+    }
+
+    private Order applyStatus(Order order, OrderStatus newStatus) {
+        OrderStatus oldStatus = order.getOrderStatus();
+        order.setOrderStatus(newStatus);
+        Order saved = orderRepo.save(order);
+        recordStatusChange(saved, oldStatus, newStatus);
+        return findOrder(saved.getId());
+    }
+
+    private void recordStatusChange(Order order, OrderStatus oldStatus, OrderStatus newStatus) {
+        OrderStatusHistory history = new OrderStatusHistory();
+        history.setOrder(order);
+        history.setOldStatus(oldStatus);
+        history.setNewStatus(newStatus);
+        history.setChangedBy(currentUser());
+        orderStatusHistoryRepo.save(history);
+
+        if (order.getCustomer() != null) {
+            emailService.sendOrderStatusUpdate(
+                    order.getCustomer().getEmail(),
+                    order.getId(),
+                    oldStatus,
+                    newStatus
+            );
+        }
     }
 
     private void restoreStock(Order order) {

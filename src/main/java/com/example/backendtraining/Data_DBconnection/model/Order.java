@@ -60,6 +60,7 @@ public class Order {
     private int trackNumber;
 
     @Enumerated(EnumType.STRING)
+    @Column(length = 32)
     private OrderStatus orderStatus = OrderStatus.PLACED;
 
     @CreationTimestamp

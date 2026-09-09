@@ -1,6 +1,7 @@
 package com.example.backendtraining.controller;
 
 import com.example.backendtraining.Data_DBconnection.model.Order;
+import com.example.backendtraining.Data_DBconnection.model.OrderStatusHistory;
 import com.example.backendtraining.dto.OrderRequest;
 import com.example.backendtraining.service.OrderService;
 import org.springframework.web.bind.annotation.*;
@@ -27,9 +28,19 @@ public class OrderController {
         return orderService.getOrderById(id);
     }
 
+    @GetMapping("/{id}/history")
+    public List<OrderStatusHistory> getOrderHistory(@PathVariable int id) {
+        return orderService.getOrderHistory(id);
+    }
+
     @PostMapping("")
     public Order addOrder(@RequestBody OrderRequest request) {
         return orderService.addOrder(request);
+    }
+
+    @PutMapping("/{id}/accept")
+    public Order acceptOrder(@PathVariable int id) {
+        return orderService.acceptOrder(id);
     }
 
     @PutMapping("/{id}/ship")
