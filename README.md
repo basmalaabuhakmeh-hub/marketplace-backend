@@ -35,7 +35,7 @@ POST http://localhost:8080/auth/reset-password
 { "email": "your-existing-user@mail.com", "otp": "123456", "newPassword": "new123" }
 ```
 
-Until Gmail is configured on the OTP service, the 6-digit code is printed in that service’s console.
+Until a Resend API key is set on the OTP service, the 6-digit code is printed in that service’s console.
 
 ## Auth
 
