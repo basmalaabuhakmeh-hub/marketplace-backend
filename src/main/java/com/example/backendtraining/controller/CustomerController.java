@@ -2,10 +2,13 @@ package com.example.backendtraining.controller;
 
 import com.example.backendtraining.Data_DBconnection.model.Customer;
 import com.example.backendtraining.service.CustomerService;
+import jakarta.validation.constraints.Min;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Validated
 @RequestMapping("/customers")
 @RestController
 public class CustomerController {
@@ -22,7 +25,7 @@ public class CustomerController {
     }
 
     @GetMapping("/{id}")
-    public Customer getCustomerById(@PathVariable int id){
+    public Customer getCustomerById(@PathVariable @Min(value = 1, message = "Customer id must be greater than 0") int id){
         return cusService.getCustomerById(id);
     }
 
@@ -32,7 +35,7 @@ public class CustomerController {
     }
 
     @DeleteMapping("/{id}")
-    public void deleteCustomer(@PathVariable int id){
+    public void deleteCustomer(@PathVariable @Min(value = 1, message = "Customer id must be greater than 0") int id){
         cusService.deleteCustomer(id);
     }
 }

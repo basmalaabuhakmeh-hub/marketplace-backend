@@ -7,6 +7,7 @@ import com.example.backendtraining.dto.LoginRequest;
 import com.example.backendtraining.dto.ResetPasswordRequest;
 import com.example.backendtraining.dto.SellerSignupRequest;
 import com.example.backendtraining.service.AuthService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,36 +23,36 @@ public class AuthController {
     AuthService authService;
 
     @PostMapping("/signup/customer")
-    public ResponseEntity<String> signupCustomer(@RequestBody CustomerSignupRequest req) {
+    public ResponseEntity<String> signupCustomer(@Valid @RequestBody CustomerSignupRequest req) {
         authService.signupCustomer(req);
         return ResponseEntity.ok("Customer registered");
     }
 
     @PostMapping("/signup/seller")
-    public ResponseEntity<String> signupSeller(@RequestBody SellerSignupRequest req) {
+    public ResponseEntity<String> signupSeller(@Valid @RequestBody SellerSignupRequest req) {
         authService.signupSeller(req);
         return ResponseEntity.ok("Seller registered — waiting for admin approval");
     }
 
     @PostMapping("/signup/driver")
-    public ResponseEntity<String> signupDriver(@RequestBody DriverSignupRequest req) {
+    public ResponseEntity<String> signupDriver(@Valid @RequestBody DriverSignupRequest req) {
         authService.signupDriver(req);
         return ResponseEntity.ok("Driver registered — waiting for admin approval");
     }
 
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody LoginRequest req) {
+    public ResponseEntity<String> login(@Valid @RequestBody LoginRequest req) {
         return ResponseEntity.ok(authService.login(req));
     }
 
     @PostMapping("/forgot-password")
-    public ResponseEntity<String> forgotPassword(@RequestBody ForgotPasswordRequest req) {
+    public ResponseEntity<String> forgotPassword(@Valid @RequestBody ForgotPasswordRequest req) {
         authService.forgotPassword(req);
         return ResponseEntity.ok("OTP sent");
     }
 
     @PostMapping("/reset-password")
-    public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest req) {
+    public ResponseEntity<String> resetPassword(@Valid @RequestBody ResetPasswordRequest req) {
         authService.resetPassword(req);
         return ResponseEntity.ok("Password updated");
     }
