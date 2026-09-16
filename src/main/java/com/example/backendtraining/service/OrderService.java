@@ -7,6 +7,8 @@ import com.example.backendtraining.Data_DBconnection.model.Order;
 import com.example.backendtraining.Data_DBconnection.model.OrderItem;
 import com.example.backendtraining.Data_DBconnection.model.OrderStatus;
 import com.example.backendtraining.Data_DBconnection.model.OrderStatusHistory;
+import com.example.backendtraining.Data_DBconnection.model.PaymentStatus;
+import com.example.backendtraining.Data_DBconnection.model.PaymentType;
 import com.example.backendtraining.Data_DBconnection.model.Product;
 import com.example.backendtraining.Data_DBconnection.model.Role;
 import com.example.backendtraining.Data_DBconnection.model.Seller;
@@ -41,10 +43,12 @@ public class OrderService {
     private final DriverRepo driverRepo;
     private final OrderStatusHistoryRepo orderStatusHistoryRepo;
     private final EmailService emailService;
+    private final PaymentService paymentService;
 
     public OrderService(OrderRepo orderRepo, ProductRepo productRepo, CustomerRepo customerRepo,
                         UserRepo userRepo, SellerRepo sellerRepo, DriverRepo driverRepo,
-                        OrderStatusHistoryRepo orderStatusHistoryRepo, EmailService emailService) {
+                        OrderStatusHistoryRepo orderStatusHistoryRepo, EmailService emailService,
+                        PaymentService paymentService) {
         this.orderRepo = orderRepo;
         this.productRepo = productRepo;
         this.customerRepo = customerRepo;
@@ -53,6 +57,7 @@ public class OrderService {
         this.driverRepo = driverRepo;
         this.orderStatusHistoryRepo = orderStatusHistoryRepo;
         this.emailService = emailService;
+        this.paymentService = paymentService;
     }
 
     @Transactional(readOnly = true) //"I'm only reading data. I'm not intending to modify the database."
@@ -117,6 +122,17 @@ public class OrderService {
             orderItems.add(item);
         }
         order.setOrderItems(orderItems);
+        order.setPaymentType(request.getPaymentType());
+
+        double amount = orderItems.stream()
+                .mapToDouble(item -> item.getPriceAtPurchase() * item.getQuantity())
+                .sum();
+        PaymentStatus paymentStatus = paymentService.process(request.getPaymentType(), amount);
+        if (paymentStatus == PaymentStatus.FAILED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Payment failed");
+        }
+        order.setPaymentStatus(paymentStatus);
+
         Order saved = orderRepo.save(order);
         recordStatusChange(saved, null, OrderStatus.PLACED);
         return findOrder(saved.getId());
@@ -173,6 +189,23 @@ public class OrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only SHIPPED orders can be delivered");
         }
         return applyStatus(order, OrderStatus.DELIVERED);
+    }
+
+    @Transactional
+    public Order collectPayment(int id) {
+        Order order = findOrder(id);
+        requireCanCollectPayment(order);
+        if (order.getPaymentType() != PaymentType.CASH) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only cash orders are collected on delivery");
+        }
+        if (order.getOrderStatus() != OrderStatus.DELIVERED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cash can only be collected after delivery");
+        }
+        if (order.getPaymentStatus() == PaymentStatus.PAID) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Payment is already collected");
+        }
+        order.setPaymentStatus(PaymentStatus.PAID);
+        return orderRepo.save(order);
     }
 
     @Transactional
@@ -274,6 +307,18 @@ public class OrderService {
             return;
         }
         throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only admin, the product seller, or the assigned driver can update status");
+    }
+
+    private void requireCanCollectPayment(Order order) {
+        User user = currentUser();
+        if (user.getRole() == Role.ADMIN) {
+            return;
+        }
+        if (user.getRole() == Role.DRIVER) {
+            requireAssignedDriver(order);
+            return;
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the assigned driver or admin can collect cash");
     }
 
     private boolean containsSellerProduct(Order order, Seller seller) {

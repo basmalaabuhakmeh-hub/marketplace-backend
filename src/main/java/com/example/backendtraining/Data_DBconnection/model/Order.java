@@ -13,7 +13,10 @@ import java.util.List;
 @Setter
 @Table(
         name = "orders",
-        indexes = @Index(name = "idx_orders_status", columnList = "orderStatus")
+        indexes = {
+                @Index(name = "idx_orders_status", columnList = "orderStatus"),
+                @Index(name = "idx_orders_payment_status", columnList = "paymentStatus")
+        }
 )
 @Entity
 // The graph says: when someone uses the name "Order.details", load this tree in one go.
@@ -62,6 +65,14 @@ public class Order {
     @Enumerated(EnumType.STRING)
     @Column(length = 32)
     private OrderStatus orderStatus = OrderStatus.PLACED;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 16)
+    private PaymentType paymentType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 16)
+    private PaymentStatus paymentStatus;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

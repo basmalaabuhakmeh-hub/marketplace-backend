@@ -65,6 +65,11 @@ public class OrderController {
         return orderService.deliverOrder(id);
     }
 
+    @PutMapping("/{id}/pay")
+    public Order collectPayment(@PathVariable @Min(value = 1, message = "Order id must be greater than 0") int id) {
+        return orderService.collectPayment(id);
+    }
+
     @PutMapping("/{id}/cancel")
     public Order cancelOrder(@PathVariable @Min(value = 1, message = "Order id must be greater than 0") int id) {
         return orderService.cancelOrder(id);

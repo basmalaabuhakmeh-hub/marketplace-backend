@@ -13,7 +13,8 @@ This service calls it with `RestTemplate` (`POST /otp/send` and `POST /otp/verif
 - JWT login (signup on `/auth/**`, no token)
 - Admin approval for sellers and drivers
 - Products (pagination, bulk create, stock)
-- Orders: place → ship → assign driver → deliver (or cancel while `PLACED`)
+- Orders: place → accept → ship → assign driver → deliver (or cancel while `PLACED`)
+- Payments: `CREDIT` is PAID on place; `CASH` stays PENDING until the driver collects after delivery (`PUT /orders/{id}/pay`)
 - Soft delete for users and products
 - Forgot / reset password via the OTP microservice
 
