@@ -10,6 +10,7 @@ import com.example.backendtraining.Data_DBconnection.repository.SellerRepo;
 import com.example.backendtraining.Data_DBconnection.repository.UserRepo;
 import com.example.backendtraining.dto.ProductRequest;
 import com.example.backendtraining.dto.ProductResponse;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -29,23 +30,25 @@ public class ProductService {
     private final ProductRepo productRepo;
     private final SellerRepo sellerRepo;
     private final UserRepo userRepo;
+    private final ProductCatalogService productCatalogService;
 
-    public ProductService(ProductRepo productRepo, SellerRepo sellerRepo, UserRepo userRepo) {
+    public ProductService(ProductRepo productRepo, SellerRepo sellerRepo, UserRepo userRepo,
+                          ProductCatalogService productCatalogService) {
         this.productRepo = productRepo;
         this.sellerRepo = sellerRepo;
         this.userRepo = userRepo;
+        this.productCatalogService = productCatalogService;
     }
 
     @Transactional(readOnly = true)
     public ProductResponse getProducts(int pageNo, int pageSize) {
-        Pageable pageable = PageRequest.of(pageNo, pageSize);
         User user = currentUser();
-        Page<Product> products;
-        if (user.getRole() == Role.SELLER) {
-            products = productRepo.findBySellerAndDeletedFalse(currentSeller(), pageable);
-        } else {
-            products = productRepo.findAllWithSeller(pageable);
+        if (user.getRole() != Role.SELLER) {
+            return productCatalogService.getCatalog(pageNo, pageSize);
         }
+
+        Pageable pageable = PageRequest.of(pageNo, pageSize);
+        Page<Product> products = productRepo.findBySellerAndDeletedFalse(currentSeller(), pageable);
         ProductResponse productResponse = new ProductResponse();
         productResponse.setContent(products.getContent());
         productResponse.setPageNo(products.getNumber());
@@ -73,6 +76,7 @@ public class ProductService {
         return product;
     }
 
+    @CacheEvict(cacheNames = "productCatalog", allEntries = true)
     public Product addProduct(ProductRequest request) {
         Seller seller = requireAcceptedSeller();
         if (request.getStock() < 0) {
@@ -87,6 +91,7 @@ public class ProductService {
         return productRepo.save(product);
     }
 
+    @CacheEvict(cacheNames = "productCatalog", allEntries = true)
     public List<Product> addProducts(List<ProductRequest> requests) {
         List<Product> saved = new ArrayList<>();
         for (ProductRequest request : requests) {
@@ -95,6 +100,7 @@ public class ProductService {
         return saved;
     }
 
+    @CacheEvict(cacheNames = "productCatalog", allEntries = true)
     public Product updateProduct(int id, ProductRequest request) {
         Product product = getProductById(id);
         requireOwnerOrAdmin(product);
@@ -108,6 +114,7 @@ public class ProductService {
         return productRepo.save(product);
     }
 
+    @CacheEvict(cacheNames = "productCatalog", allEntries = true)
     public void deleteProduct(int id) {
         Product product = getProductById(id);
         requireOwnerOrAdmin(product);

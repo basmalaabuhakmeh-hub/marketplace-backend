@@ -5,6 +5,7 @@ import com.example.backendtraining.Data_DBconnection.model.Seller;
 import com.example.backendtraining.Data_DBconnection.repository.ProductRepo;
 import com.example.backendtraining.Data_DBconnection.repository.SellerRepo;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +40,7 @@ public class SellerService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = "productCatalog", allEntries = true)
     public void deleteSeller(int id) {
         Seller seller = getSellerById(id);
         seller.setDeleted(true);

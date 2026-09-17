@@ -22,6 +22,7 @@ import com.example.backendtraining.Data_DBconnection.repository.SellerRepo;
 import com.example.backendtraining.Data_DBconnection.repository.UserRepo;
 import com.example.backendtraining.dto.OrderItemRequest;
 import com.example.backendtraining.dto.OrderRequest;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -83,6 +84,7 @@ public class OrderService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = "productCatalog", allEntries = true)
     public Order addOrder(OrderRequest request) {
         if (request.getItems() == null || request.getItems().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order must contain items");
@@ -209,6 +211,7 @@ public class OrderService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = "productCatalog", allEntries = true)
     public Order cancelOrder(int id) {
         Order order = findOrder(id);
         User user = currentUser();
