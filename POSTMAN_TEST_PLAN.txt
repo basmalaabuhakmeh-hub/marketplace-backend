@@ -1,0 +1,570 @@
+Full Postman test plan
+======================
+
+Restart both apps first.
+1. Redis (Docker): docker run --name redis -p 6379:6379 -d redis
+   If the container already exists: docker start redis
+2. ForgetPassword-microService on port 8081
+3. Then this marketplace on port 8080
+
+Base URL: http://localhost:8080
+OTP service: http://localhost:8081  (do not verify OTP here first — that burns the code)
+
+Postman habit:
+- /auth/**  -> Authorization = No Auth, Body = raw JSON
+- everything else -> Authorization = Bearer Token
+  Type = Bearer Token. Paste ONLY the eyJ... string (do not type "Bearer ").
+- Body email/password on a GET does nothing. Token goes on the Authorization tab of THAT request.
+- After every app restart, login again. JWT secret is new; old tokens die.
+
+
+Accounts
+--------
+Role           Email                    Password
+Admin          admin@mail.com           admin123   (seeded; if 401 try admin@gmail.com)
+Seller         seller1@mail.com         1234
+Customer A     customer1@mail.com       1234
+Customer B     customer2@mail.com       1234
+Driver A       driver1@mail.com         1234
+Driver B       driver2@mail.com         1234
+
+Use new emails if these already exist (seller2, customer3, driver3, ...).
+
+Keep 5 tokens: ADMIN_TOKEN, SELLER_TOKEN, CUSTOMER_TOKEN, CUSTOMER_B_TOKEN, DRIVER_TOKEN.
+
+productType must be one of: Electronics, ComputerAccessories, MobileAccessories
+paymentType must be one of: CASH, CREDIT
+  CREDIT -> paymentStatus PAID as soon as the order is placed (card is simulated here).
+  CASH   -> paymentStatus PENDING until the driver collects after DELIVERED
+            PUT /orders/{id}/pay  (ADMIN or assigned DRIVER only).
+
+Validation 400 body (missing/blank/invalid fields, bad ids, bad paging):
+{
+  "status": 400,
+  "message": "Validation failed",
+  "errors": { "email": "Email must be valid" }
+}
+Business 400s (not enough stock, wrong order status) still use Spring's default error JSON, not this map.
+Invalid productType (e.g. "Food") -> 400, errors.body says it must be one of the three types.
+GET /products/0 (or any id 0) -> 400, not 404. Use 99999 for 404.
+Password min length is 4, so accounts in this file still work.
+
+Redis catalog cache (customer + admin GET /products only):
+- Method must be GET (PUT /products is 405).
+- Key is pageNo-pageSize, e.g. productCatalog::0-10 (ttl 10 minutes).
+- 1st GET /products?pageNo=0&pageSize=10 -> IntelliJ shows product SQL.
+- 2nd GET same URL -> 200, same JSON, NO new product SQL (users SQL from JWT is normal).
+- Seller GET /products is NOT cached (own products only).
+- Create/update/delete product, place/cancel order, or delete seller -> cache is cleared; next customer GET hits SQL again.
+Check keys: docker exec -it redis redis-cli
+  KEYS *
+  GET productCatalog::0-10   (may look like JSON)
+
+MySQL note: users.role must include DRIVER
+  (enum ADMIN, CUSTOMER, SELLER, DRIVER). ddl-auto=update will not add it.
+
+
+================================================================
+A. Signup (No Auth)
+================================================================
+
+1. POST /auth/signup/seller
+
+{
+  "name": "Sara Seller",
+  "email": "seller1@mail.com",
+  "password": "1234",
+  "businessName": "Sara Shop"
+}
+
+Expect 200 — waiting for admin approval.
+
+2. POST /auth/signup/customer
+
+{
+  "name": "Ali Customer",
+  "email": "customer1@mail.com",
+  "password": "1234",
+  "address": "Amman",
+  "phoneNumber": "0791111111"
+}
+
+Expect 200.
+
+3. POST /auth/signup/customer again for Customer B
+
+{
+  "name": "Noor Customer",
+  "email": "customer2@mail.com",
+  "password": "1234",
+  "address": "Zarqa",
+  "phoneNumber": "0792222222"
+}
+
+Expect 200.
+
+4. POST /auth/signup/driver  (Driver A)
+
+{
+  "name": "Omar Driver",
+  "email": "driver1@mail.com",
+  "password": "1234",
+  "phoneNumber": "0599000000"
+}
+
+Expect 200 — waiting for admin approval.
+In MySQL users.role must be DRIVER (not SELLER).
+
+5. POST /auth/signup/driver  (Driver B — will reject later)
+
+{
+  "name": "Sara Driver",
+  "email": "driver2@mail.com",
+  "password": "1234",
+  "phoneNumber": "0599111111"
+}
+
+Expect 200.
+
+6. POST /auth/signup/driver with driver1@mail.com again
+   Expect 500, message: Email already exists. That is OK (duplicate email).
+
+6b. POST /auth/signup/customer with missing name, or email "not-an-email", or password "12"
+    Expect 400 Validation failed (errors.name / errors.email / errors.password).
+
+
+================================================================
+B. Login (No Auth)
+================================================================
+
+7. POST /auth/login
+
+{
+  "email": "admin@mail.com",
+  "password": "admin123"
+}
+
+Copy the string -> ADMIN_TOKEN.
+If 401, try admin@gmail.com / admin123.
+
+8. POST /auth/login seller1@mail.com / 1234 -> SELLER_TOKEN.
+   Pending seller CAN log in.
+
+9. POST /auth/login customer1@mail.com / 1234 -> CUSTOMER_TOKEN.
+
+10. POST /auth/login customer2@mail.com / 1234 -> CUSTOMER_B_TOKEN.
+
+11. POST /auth/login driver1@mail.com / 1234 -> DRIVER_TOKEN.
+    Pending driver CAN log in.
+
+12. Wrong password on any login -> 401.
+    Blank/missing email or password, or "not-an-email" -> 400 Validation failed
+    (errors.email / errors.password). This is NOT 401.
+
+
+================================================================
+C. Role walls (Bearer)
+================================================================
+
+13. CUSTOMER_TOKEN -> GET /admin/sellers/pending -> 403
+14. DRIVER_TOKEN   -> GET /admin/drivers/pending -> 403
+15. SELLER_TOKEN   -> GET /admin/sellers/pending -> 403
+16. No token       -> GET /products -> 401 or 403
+17. CUSTOMER_TOKEN -> GET /drivers -> 403  (only ADMIN, DRIVER)
+18. CUSTOMER_TOKEN -> POST /products -> 403
+19. DRIVER_TOKEN   -> POST /products -> 403
+20. DRIVER_TOKEN   -> POST /orders   -> 403
+21. SELLER_TOKEN   -> POST /orders   -> 403
+22. CUSTOMER_TOKEN -> PUT /orders/1/ship -> 403
+23. DRIVER_TOKEN   -> PUT /orders/1/assign/1 -> 403
+24. CUSTOMER_TOKEN -> PUT /orders/1/pay -> 403  (only ADMIN, DRIVER)
+25. SELLER_TOKEN   -> PUT /orders/1/pay -> 403
+26. CUSTOMER_TOKEN -> PUT /drivers -> 403
+26b. DRIVER_TOKEN  -> PUT /drivers -> 403
+26c. DRIVER_TOKEN  -> DELETE /drivers/1 -> 403
+
+
+================================================================
+D. Admin: sellers
+================================================================
+
+27. ADMIN_TOKEN -> GET /admin/sellers/pending -> 200
+    Note seller id (example: sellerId).
+
+28. SELLER_TOKEN -> POST /products BEFORE accept -> 403 Seller is not approved
+
+{
+  "name": "USB Cable",
+  "productType": "ComputerAccessories",
+  "price": 9.99,
+  "stock": 10
+}
+
+29. ADMIN_TOKEN -> PUT /admin/sellers/{sellerId}/accept
+    Expect 200, "status": "ACCEPTED".
+
+30. Optional reject path (use a spare seller, not seller1):
+    PUT /admin/sellers/{id}/reject
+    Then that seller login -> fail (rejected cannot log in).
+
+
+================================================================
+E. Admin: drivers
+================================================================
+
+31. ADMIN_TOKEN -> GET /admin/drivers/pending -> 200
+    Note driver1 id and driver2 id.
+
+32. ADMIN_TOKEN -> PUT /admin/drivers/{driver1Id}/accept
+    Expect 200, "status": "ACCEPTED".
+
+33. ADMIN_TOKEN -> PUT /admin/drivers/{driver2Id}/reject
+    Expect 200, "status": "REJECTED".
+
+34. POST /auth/login driver2@mail.com / 1234 -> should FAIL
+    (rejected driver cannot log in).
+
+35. Login driver1 again after accept -> new DRIVER_TOKEN.
+
+
+================================================================
+F. Driver list
+================================================================
+
+36. DRIVER_TOKEN -> GET /drivers -> 200
+37. DRIVER_TOKEN -> GET /drivers/{driver1Id} -> 200
+38. ADMIN_TOKEN  -> GET /drivers -> 200
+39. ADMIN_TOKEN  -> PUT /drivers  (update body with real id) — admin only
+40. Do NOT delete a driver you still need for later steps.
+
+
+================================================================
+G. Products (single + pagination + bulk)
+================================================================
+
+41. SELLER_TOKEN -> POST /products (same body as step 28) -> 200
+    Save productId. Check "stock": 10.
+
+42. SELLER_TOKEN -> GET /products?pageNo=0&pageSize=10
+    Seller sees ONLY their products.
+    Response has content, pageNo, pageSize, totalElements, totalPages, last.
+
+43. CUSTOMER_TOKEN -> GET /products?pageNo=0&pageSize=10
+    Must be GET, not PUT.
+    Customer sees the catalog (all sellers).
+    1st call: console shows SELECT from product.
+    2nd call (same URL, same token): 200, no new product SQL.
+    ADMIN_TOKEN GET /products?pageNo=0&pageSize=10 is also cached (same key).
+    SELLER_TOKEN GET /products is not cached — still hits SQL every time.
+
+    After step 47/48 (product change) or after placing/cancelling an order:
+    CUSTOMER_TOKEN GET /products again -> product SQL is back once, then cached again.
+
+44. CUSTOMER_TOKEN -> GET /products/{productId} -> 200
+45. SELLER_TOKEN   -> GET /products/{otherSellerProductId} -> 403
+    (seller can only view own products)
+
+46. CUSTOMER_TOKEN -> POST /products -> 403
+
+47. SELLER_TOKEN -> PUT /products/{productId}
+
+{
+  "name": "USB Cable",
+  "productType": "ComputerAccessories",
+  "price": 9.99,
+  "stock": 20
+}
+
+Expect 200, stock 20.
+
+48. SELLER_TOKEN -> POST /products/bulk
+
+[
+  {"name": "HDMI Cable", "productType": "ComputerAccessories", "price": 12.50, "stock": 35},
+  {"name": "Wireless Mouse", "productType": "ComputerAccessories", "price": 19.99, "stock": 25},
+  {"name": "iPhone Case", "productType": "MobileAccessories", "price": 14.99, "stock": 50}
+]
+
+Expect 200, array of products. Auth must be on THIS request (seller token).
+
+49. GET /products?pageNo=0&pageSize=2 -> totalPages > 1 if enough products.
+    GET /products?pageNo=1&pageSize=2 -> next page.
+
+50. SELLER_TOKEN -> POST /products with "stock": -1
+    -> 400, errors.stock = "Stock cannot be negative".
+    Also try missing name, price 0, empty bulk []:
+    - blank name -> errors.name = "Product name is required"
+    - "price": 0 -> errors.price = "Price must be greater than 0"
+    - POST /products/bulk with [] -> 400 Product list cannot be empty
+    - GET /products?pageNo=-1 or pageSize=0 or pageSize=101 -> 400
+    - GET /products/0 -> 400 Product id must be greater than 0
+
+51. Later (after orders): SELLER_TOKEN or ADMIN_TOKEN -> DELETE /products/{id}
+    Only own product (seller) or any (admin).
+
+
+================================================================
+H. Happy order (CASH): place -> accept -> ship -> assign -> deliver -> collect cash
+================================================================
+
+52. CUSTOMER_TOKEN -> POST /orders
+
+{
+  "items": [
+    { "productId": 1, "quantity": 2 }
+  ],
+  "paymentType": "CASH"
+}
+
+Expect 200, "orderStatus": "PLACED", "paymentType": "CASH", "paymentStatus": "PENDING".
+Save orderId.
+Replace productId 1 with the real id from step 41.
+driver should be null.
+GET /orders/{orderId}/history -> 200, first row newStatus PLACED.
+If 8081 is running, the customer may get a "order placed" email (order still succeeds if email fails).
+
+53. CUSTOMER_TOKEN -> GET /products/{productId} -> stock dropped (e.g. 20 -> 18).
+
+54. CUSTOMER_TOKEN -> GET /orders -> only Ali's orders.
+
+55. CUSTOMER_B_TOKEN -> GET /orders/{orderId} of Ali's order -> 403.
+
+56. DRIVER_TOKEN -> GET /orders  (before assign) -> [] empty.
+57. DRIVER_TOKEN -> GET /orders/{orderId} -> 403 not assigned.
+
+58. SELLER_TOKEN -> PUT /orders/{orderId}/assign/{driver1Id}
+    while still PLACED -> 400 Only SHIPPED orders can be assigned a driver.
+
+59. SELLER_TOKEN -> PUT /orders/{orderId}/ship while PLACED
+    -> 400 Only ACCEPTED orders can be shipped.
+    Then PUT /orders/{orderId}/accept -> 200, "orderStatus": "ACCEPTED".
+    Then PUT /orders/{orderId}/ship -> 200, SHIPPED.
+    GET /orders/{orderId}/history should now include PLACED, ACCEPTED, SHIPPED.
+
+60. SELLER_TOKEN -> PUT /orders/{orderId}/assign/{driver2Id}
+    (rejected driver) -> 400 Driver is not approved.
+    If driver2 is rejected, or use a still-PENDING driver.
+
+61. SELLER_TOKEN -> PUT /orders/{orderId}/assign/{driver1Id}
+    Expect 200, driver is Omar / driver1.
+
+62. ADMIN_TOKEN can also assign: PUT /orders/{orderId}/assign/{driver1Id}
+
+63. DRIVER_TOKEN -> GET /orders -> sees this order only.
+64. DRIVER_TOKEN -> GET /orders/{orderId} -> 200.
+    DRIVER_TOKEN -> PUT /orders/{orderId}/pay while still SHIPPED
+    -> 400 Cash can only be collected after delivery.
+
+65. DRIVER_TOKEN -> PUT /orders/{orderId}/deliver -> 200, DELIVERED.
+    paymentStatus is still PENDING.
+
+65b. DRIVER_TOKEN -> PUT /orders/{orderId}/pay -> 200, "paymentStatus": "PAID".
+    Second PUT /orders/{orderId}/pay -> 400 Payment is already collected.
+    ADMIN_TOKEN can also collect cash.
+
+66. SELLER_TOKEN or ADMIN_TOKEN can also deliver a SHIPPED order
+    (if you did not already deliver in 65).
+
+67. CUSTOMER_TOKEN -> PUT /orders/{orderId}/cancel -> 400
+    (already shipped/delivered).
+
+68. DRIVER_TOKEN -> PUT /orders/{orderId}/ship -> 403
+    (driver cannot ship).
+
+68b. CREDIT path (new order, same product):
+    CUSTOMER_TOKEN -> POST /orders
+
+{
+  "items": [
+    { "productId": 1, "quantity": 1 }
+  ],
+  "paymentType": "CREDIT"
+}
+
+    Expect 200, "paymentType": "CREDIT", "paymentStatus": "PAID" immediately.
+    DRIVER_TOKEN or ADMIN_TOKEN -> PUT /orders/{creditOrderId}/pay
+    -> 400 Only cash orders are collected on delivery.
+    Missing paymentType -> 400, errors.paymentType = "Payment type is required".
+    "paymentType": "PayPal" -> 400, must be CASH or CREDIT.
+
+
+================================================================
+I. Cancel path (new order)
+================================================================
+
+69. CUSTOMER_TOKEN -> POST /orders again, quantity: 1, "paymentType": "CASH".
+    Save orderId2. Stock drops (e.g. 18 -> 17).
+
+70. CUSTOMER_TOKEN -> PUT /orders/{orderId2}/cancel -> 200, CANCELLED.
+
+71. GET /products/{productId} -> stock restored (17 -> 18).
+
+72. SELLER_TOKEN -> PUT /orders/{orderId2}/accept or /ship -> 400 (cancelled).
+
+73. ADMIN_TOKEN can also cancel a PLACED order.
+
+
+================================================================
+J. Stock guard + empty order
+================================================================
+
+74. CUSTOMER_TOKEN -> POST /orders with quantity: 9999 and "paymentType": "CASH"
+    -> 400 Not enough stock (business error, not the validation map).
+
+75. CUSTOMER_TOKEN -> POST /orders with "items": []
+    -> 400, errors.items = "Order must contain items".
+
+76. CUSTOMER_TOKEN -> POST /orders quantity: 0 and "paymentType": "CASH"
+    -> 400, errors["items[0].quantity"] = "Quantity must be greater than 0".
+    POST /orders with items but no paymentType
+    -> 400, errors.paymentType = "Payment type is required".
+
+
+================================================================
+K. Extra signup closed + 404
+================================================================
+
+77. Any token -> POST /customers or POST /sellers
+    Should not work as a second signup. Signup stays on /auth only.
+
+78. GET /customers/99999 -> 404
+79. GET /products/99999  -> 404
+80. GET /orders/99999    -> 404
+81. GET /drivers/99999   -> 404  (admin or driver token)
+82. GET /sellers/99999   -> 404
+    GET /products/0 or /orders/0 -> 400 (id must be greater than 0), not 404.
+
+
+================================================================
+L. GET lists by role
+================================================================
+
+83. ADMIN_TOKEN    -> GET /orders    -> all orders
+84. SELLER_TOKEN   -> GET /orders    -> orders that include their products
+85. CUSTOMER_TOKEN -> GET /orders    -> their orders only
+86. DRIVER_TOKEN   -> GET /orders    -> assigned orders only
+87. ADMIN / SELLER / CUSTOMER -> GET /sellers, GET /customers -> 200
+88. DRIVER_TOKEN -> GET /customers -> 403 (not in the GET rule)
+
+
+================================================================
+M. Forgot / reset password (No Auth) — needs OTP app on 8081
+================================================================
+
+Use an email that already exists in THIS marketplace (same as login).
+Do not mix emails. Copy the OTP from the 8081 console, not from this file.
+
+If Resend is not configured, 8081 prints:
+  Resend not configured. OTP for you@mail.com = 482084
+If a Resend API key is set, check that inbox (or the 8081 console if send failed).
+
+89. Stop the OTP app. POST /auth/forgot-password
+
+{
+  "email": "customer1@mail.com"
+}
+
+Expect 503 — OTP service is not running.
+Start 8081 again.
+
+90. POST /auth/forgot-password with "not-an-email"
+    -> 400, errors.email = "Email must be valid".
+    Then POST /auth/forgot-password with an email that is not in users
+    Example: nobody@mail.com
+    Expect 404 User not found.
+
+91. POST /auth/forgot-password
+
+{
+  "email": "customer1@mail.com"
+}
+
+Expect 200 — OTP sent.
+Copy the 6 digits from the 8081 console for THIS email.
+
+92. POST /auth/reset-password with otp "abc" or "12"
+    -> 400, errors.otp = "OTP must be 6 digits".
+    Then retry with a wrong but 6-digit otp (e.g. 000000)
+    -> 400 Invalid or expired OTP (business error).
+
+93. POST /auth/reset-password — same email as step 91, otp from the console
+
+{
+  "email": "customer1@mail.com",
+  "otp": "paste-from-8081-console",
+  "newPassword": "new123"
+}
+
+Expect 200 — Password updated.
+
+94. POST /auth/reset-password again with the SAME otp
+    Expect 400 (OTP is one-use).
+
+95. POST /auth/login customer1@mail.com / 1234 (old password)
+    Expect 401.
+
+96. POST /auth/login
+
+{
+  "email": "customer1@mail.com",
+  "password": "new123"
+}
+
+Expect 200 JWT. Use this as CUSTOMER_TOKEN if you continue testing.
+
+
+================================================================
+Checklist
+---------
+[ ] Duplicate signup email -> Email already exists
+[ ] Seller cannot add products while PENDING
+[ ] Admin accept unlocks POST /products
+[ ] Rejected seller / rejected driver cannot log in
+[ ] Customer / driver cannot add products
+[ ] Driver cannot place or ship orders
+[ ] Customer cannot ship / assign / add products
+[ ] GET /products is paginated
+[ ] Customer/admin GET /products 2nd call skips product SQL (Redis)
+[ ] Seller GET /products is not cached
+[ ] Product create/update or place/cancel order clears the catalog cache
+[ ] POST /products/bulk works with seller token
+[ ] Blank signup/login fields -> 400 with errors map
+[ ] Invalid email / OTP not 6 digits / negative stock / empty order -> 400 validation
+[ ] Invalid productType -> 400 must be one of the three types
+[ ] GET id 0 -> 400; GET 99999 -> 404
+[ ] Order reduces stock
+[ ] Cancel restores stock
+[ ] Cannot ship until ACCEPTED; cannot assign driver until SHIPPED
+[ ] GET /orders/{id}/history lists status changes
+[ ] CASH order is PENDING until PUT /orders/{id}/pay after DELIVERED
+[ ] CREDIT order is PAID on place; /pay is rejected
+[ ] Customer / seller cannot collect cash
+[ ] Cannot collect cash before delivery or twice
+[ ] Cannot assign PENDING / REJECTED driver
+[ ] Driver sees only assigned orders
+[ ] Driver can deliver assigned SHIPPED order
+[ ] Other customer cannot see the order
+[ ] JWT required on protected URLs
+[ ] After restart, old token dies — login again
+[ ] New driver signup stores role DRIVER in users (not SELLER)
+[ ] Forgot-password without OTP app -> 503
+[ ] Forgot-password unknown email -> 404
+[ ] Forgot-password existing email -> 200, OTP in 8081 console
+[ ] Wrong OTP -> 400
+[ ] Reset then login with new password
+[ ] Same OTP cannot be used twice
+
+
+Notes
+-----
+- After restarting the app, login again. JWT secret is new, old tokens stop working.
+- Forgot/reset: same email for forgot, console OTP, and reset. Marketplace 404 = email not in users.
+- Products created before stock was added may have stock = 0. Update them with PUT first.
+- If a new driver is saved as SELLER, the running app is stale — restart IntelliJ — and check users.role includes DRIVER.
+- Auth is per Postman request. Setting the token on /auth/login does not send it on GET /drivers.
+- After a successful reset, that user's password in this file (1234) is stale until you set it back or keep using new123.
+- Validation 400 = { status, message, errors }. Stock/status 400s are a different Spring JSON.
+- Order flow is PLACED -> ACCEPTED -> SHIPPED -> assign driver -> DELIVERED (or CANCELLED while PLACED).
+- CASH: PENDING on place, PAID via PUT /orders/{id}/pay after DELIVERED. CREDIT: PAID on place.
+- Redis must be up on 6379 or GET /products may fail. Catalog cache is customer/admin only.
+- Status emails go through 8081 POST /email/send. If 8081 is down, the order still succeeds.
